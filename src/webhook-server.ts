@@ -76,13 +76,25 @@ export function registerWebhookAdapter(chat: Chat, adapterName: string): void {
   log.info('Webhook adapter registered', { adapter: adapterName, path: `/webhook/${adapterName}` });
 }
 
+/** Start the HTTP server eagerly (e.g. for health checks before any adapter registers). */
+export function startWebhookServer(): void {
+  ensureServer();
+}
+
 function ensureServer(): void {
   if (server) return;
 
-  const port = parseInt(process.env.WEBHOOK_PORT || String(DEFAULT_PORT), 10);
+  const port = parseInt(process.env.WEBHOOK_PORT || process.env.PORT || String(DEFAULT_PORT), 10);
 
   server = http.createServer(async (req, res) => {
     const url = req.url || '/';
+
+    // Route: GET /health — always available for load-balancer / Railway health checks
+    if (url === '/health' || url === '/health/') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
+      return;
+    }
 
     // Route: /webhook/{adapterName}
     const match = url.match(/^\/webhook\/([^/?]+)/);

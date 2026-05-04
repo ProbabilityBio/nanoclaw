@@ -15,6 +15,7 @@ import { ensureContainerRuntimeRunning, cleanupOrphans } from './container-runti
 import { startActiveDeliveryPoll, startSweepDeliveryPoll, setDeliveryAdapter, stopDeliveryPolls } from './delivery.js';
 import { startHostSweep, stopHostSweep } from './host-sweep.js';
 import { routeInbound } from './router.js';
+import { startWebhookServer } from './webhook-server.js';
 import { log } from './log.js';
 
 // Response + shutdown registries live in response-registry.ts to break the
@@ -61,6 +62,9 @@ async function main(): Promise<void> {
 
   // 0. Circuit breaker — backoff on rapid restarts
   await enforceStartupBackoff();
+
+  // 0b. Start HTTP server immediately so health checks pass before adapters register
+  startWebhookServer();
 
   // 1. Init central DB
   const dbPath = path.join(DATA_DIR, 'v2.db');
